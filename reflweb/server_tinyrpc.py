@@ -12,7 +12,7 @@ except ImportError:
 import gevent
 import gevent.wsgi
 import gevent.queue
-from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
+from tiny_msgpackrpc import MSGPACKRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
 from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     rpc_server = RPCServerGreenlets(
         transport,
-        JSONRPCProtocol(),
+        MSGPACKRPCProtocol(),
         dispatcher
     )
     
