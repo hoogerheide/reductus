@@ -73,7 +73,7 @@ class MSGPACKRPCErrorResponse(RPCErrorResponse):
         return [
             1,
             self.unique_id,
-            "Error %d: %s" % (self._msgpackrpc_error_code, str(self.error)),
+            {"error": str(self.error), "error_code": self._msgpackrpc_error_code},
             None,
         ]
 
@@ -151,13 +151,7 @@ class MSGPACKRPCBatchResponse(RPCBatchResponse):
         raise NotImplementedError
 
 class MSGPACKRPCProtocol(RPCBatchProtocol):
-    """MSGPACKRPC protocol implementation.
-
-    Currently, only version 2.0 is supported."""
-
-    MSGPACK_RPC_VERSION = "5"
-    #_ALLOWED_REPLY_KEYS = sorted(['id', 'msgpackrpc', 'error', 'result'])
-    #_ALLOWED_REQUEST_KEYS = sorted(['id', 'msgpackrpc', 'method', 'params'])
+    """MSGPACKRPC protocol implementation."""
 
     def __init__(self, *args, **kwargs):
         super(MSGPACKRPCProtocol, self).__init__(*args, **kwargs)
