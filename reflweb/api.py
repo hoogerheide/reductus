@@ -51,9 +51,7 @@ def expose(action):
         print ":::reflweb.api."+action.__name__
         try:
             if use_msgpack:
-                import msgpack, base64
-                retval = {"serialization": "msgpack", "encoding": "base64"}
-                retval['value'] = base64.b64encode(msgpack.dumps(action(*args, **kwds)))
+                retval = action(*args, **kwds)
             else:
                 retval = {"serialization": "json", "encoding": "string"}
                 retval['value'] = sanitizeForJSON(action(*args, **kwds))
