@@ -45,16 +45,11 @@ def expose(action):
     Decorator which adds function to the list of methods to expose in the api.
     """
     api_methods.append(action.__name__)
-    use_msgpack = getattr(config, 'use_msgpack', False)
     @wraps(action)
     def wrapper(*args, **kwds):
         print ":::reflweb.api."+action.__name__
         try:
-            if use_msgpack:
-                retval = action(*args, **kwds)
-            else:
-                retval = {"serialization": "json", "encoding": "string"}
-                retval['value'] = sanitizeForJSON(action(*args, **kwds))
+            retval = action(*args, **kwds)
         except Exception as exc:
             traceback.print_exc()
             print ">>> :::refweb.api."+action.__name__
