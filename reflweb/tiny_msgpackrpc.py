@@ -151,7 +151,17 @@ class MSGPACKRPCBatchResponse(RPCBatchResponse):
         raise NotImplementedError
 
 class MSGPACKRPCProtocol(RPCBatchProtocol):
+<<<<<<< HEAD
     """MSGPACKRPC protocol implementation."""
+=======
+    """MSGPACKRPC protocol implementation.
+
+    Currently, only version 2.0 is supported."""
+
+    MSGPACK_RPC_VERSION = "5"
+    #_ALLOWED_REPLY_KEYS = sorted(['id', 'msgpackrpc', 'error', 'result'])
+    #_ALLOWED_REQUEST_KEYS = sorted(['id', 'msgpackrpc', 'method', 'params'])
+>>>>>>> 635d3931faf1a0b392b16b32165e5d95c44999b4
 
     def __init__(self, *args, **kwargs):
         super(MSGPACKRPCProtocol, self).__init__(*args, **kwargs)
