@@ -15,22 +15,45 @@ if sys.argv[1] == 'test':
 
 from setuptools import setup, Extension, find_packages
 
+version = None
+for line in open(joinpath("reflred","__init__.py")):
+    if "__version__" in line:
+        version = line.split('"')[1]
+
 import subprocess
 git_version_hash = subprocess.Popen(["git", "rev-parse", "HEAD"], stdout=subprocess.PIPE).stdout.read()
 open("reflweb/git_version_hash", "wb").write(git_version_hash)
 server_mtime = subprocess.Popen(["git", "log", "-1", "--pretty=format:%ct"], stdout=subprocess.PIPE).stdout.read()
 open("reflweb/git_version_mtime", "wb").write(server_mtime)
 
-packages = find_packages(exclude=['reflbin'])
+
+packages = find_packages(exclude=['reflbin', 'reflred-old*'])
+
+def module_config():
+    source_root = joinpath('dataflow', 'lib', 'src')
+    sources = ("reduction.cc", "str2imat.c")  ## C API wrapper
+    target = 'dataflow.lib._reduction'
+    # sources = ("_rebin.pyx")  ## cython wrapper
+    # target = 'dataflow.lib._rebin'
+    depends = ("rebin.h", "rebin2D.h")
+    module = Extension(target,
+                       sources=[joinpath(source_root, f) for f in sources],
+                       depends=[joinpath(source_root, f) for f in depends],
+                       include_dirs=[source_root],
+                       language="c++",
+                      )
+    return [module]  ## C API wrapper
+    # from Cython.Build import cythonize
+    # return cythonize([module])  ## cython wrapper
 
 #sys.dont_write_bytecode = False
 dist = setup(
-    name='reductus',
-    version='0.1a4',
+    name='reflred',
+    version=version,
     author='Paul Kienzle',
     author_email='paul.kienzle@nist.gov',
-    url='http://github.com/reductus/reductus',
-    description='Data reduction for neutron scattering',
+    url='http://github.com/reflectometry/reduction/reflred',
+    description='Data reduction for 1-D reflectometry',
     long_description=open('README.rst').read(),
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -47,12 +70,14 @@ dist = setup(
     zip_safe=False,
     packages=packages,
     include_package_data=True,
-    entry_points = {
-        'console_scripts': ['reductus=reflweb.run:main'],
-    },
+    #data_files=[('reflweb', ['reflweb/git_version_hash'])],
+    ext_modules=module_config(),
+    # numpy and scipy are requirements, but don't install them with pip
     install_requires=[
-        'scipy', 'numpy', 'h5py', 'uncertainties', 'docutils', 'wheel', 'pytz', 'msgpack-python', 'flask'],
+        'uncertainties', 'docutils', 'wheel', 'pytz', 'h5py', 
+        'redis', 'msgpack-python', 'flask'],
     extras_require={
+        'preinstalled': ['scipy', 'numpy'],
         'masked_curve_fit': ['numdifftools'],
         },
     )
