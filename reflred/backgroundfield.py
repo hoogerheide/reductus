@@ -42,7 +42,8 @@ def background_reservoir(ai, epsD, af, epssi, Fd, scale):
 
     res = (1 - A) / (1. + np.sin(ai) / np.sin(af))
 
-    si = epssi * (Fd * np.sin(af) / np.sin(ai + af)) * (0.5 + 0.5 * A)
+    #si = epssi * (Fd * np.sin(af) / np.sin(ai + af)) * (0.5 + 0.5 * A)
+    si = epssi * Fd / np.cos(ai) * (0.5 + 0.5 * A)
 
     # first term is the background value; the second contains intermediates used
     # in the Jacobian function and error calculation
@@ -56,7 +57,8 @@ def background_reservoir_jac(ai, epsD, af, epssi, Fd, scale):
     A, res, si = background_reservoir(ai, epsD, af, epssi, Fd, scale)[1]
     dA_depsD = -(1. / np.sin(ai) + 1. / np.sin(af)) * A
     dres_depsD = -dA_depsD / (1. + np.sin(ai) / np.sin(af))
-    dsi_depsD = epssi * (Fd * np.sin(af) / np.sin(ai + af)) * (0.5 * dA_depsD)
+    #dsi_depsD = epssi * (Fd * np.sin(af) / np.sin(ai + af)) * (0.5 * dA_depsD)
+    dsi_depsD = epssi * Fd / np.cos(ai) * (0.5 * dA_depsD)
 
     J = np.array([res + si, scale*(dres_depsD + dsi_depsD)])
 
@@ -95,7 +97,7 @@ def detector_footprint(af, s3, s4, LS3, L34):
 
     return s3 * LS3 / (L34 * np.sin(af)) * (s4 / s3 + 1. + L34 / LS3)
 
-def fit_background_field(back, epsD0, epssi, fit_scale, scale_value=1.0, LS3=380, LS4=1269, LSD=1675, HD=150, Qcutoff=0.05, maxF=75):
+def fit_background_field(back, epsD0, epssi, fit_scale, scale_value=1.0, LS3=380, LS4=1269, LSD=1675, HD=150, Qcutoff=0.05, maxF=76.2):
     """
     Performs the fit to the background field.
     """
