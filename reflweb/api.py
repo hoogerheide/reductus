@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import sys
 import os
+import importlib
 from pprint import pprint
 import traceback
 import json
@@ -14,14 +15,12 @@ except ImportError:
 
 import dataflow
 from dataflow.core import Template, lookup_instrument, _instrument_registry
-from dataflow.cache import use_redis, use_diskcache
+from dataflow.cache import use_redis, use_diskcache, get_cache
 from dataflow.calc import process_template
 import dataflow.core as df
 
-import dataflow.modules.refl
-from dataflow.modules.refl import INSTRUMENT # default
-import dataflow.modules.ospec
-import dataflow.modules.sans
+import dataflow.modules
+
 from dataflow import fetch
 
 try:
@@ -35,9 +34,10 @@ IS_PY3 = sys.version_info[0] >= 3
 # will exist in parent (reduction) folder...
 if os.path.exists(os.path.join(os.path.dirname(__file__), "..", ".git")):
     import subprocess
-    server_git_hash = subprocess.Popen(["git", "rev-parse", "HEAD"], stdout=subprocess.PIPE).stdout.read().strip()
+    cwd = os.path.dirname(__file__)
+    server_git_hash = subprocess.Popen(["git", "rev-parse", "HEAD"], cwd=cwd, stdout=subprocess.PIPE).stdout.read().strip()
     if IS_PY3: server_git_hash = server_git_hash.decode('ascii')
-    server_mtime = int(subprocess.Popen(["git", "log", "-1", "--pretty=format:%ct"], stdout=subprocess.PIPE).stdout.read().strip())
+    server_mtime = int(subprocess.Popen(["git", "log", "-1", "--pretty=format:%ct"], cwd=cwd, stdout=subprocess.PIPE).stdout.read().strip())
     print("running git rev-parse HEAD", server_git_hash, server_mtime)
 else:
     # otherwise for prebuilt systems use the packaged file that was created in setup.py
@@ -113,7 +113,7 @@ def get_file_metadata(source="ncnr", pathlist=None):
     return metadata
 
 @expose
-def get_instrument(instrument_id=INSTRUMENT):
+def get_instrument(instrument_id="ncnr.refl"):
     """
     Make the instrument definition available to clients
     """
@@ -235,12 +235,16 @@ def create_instruments():
     elif getattr(config, 'use_diskcache', False):
         diskcache_params = getattr(config, "diskcache_params", {})
         use_diskcache(**diskcache_params)
+    
+    if getattr(config, 'use_compression', False):
+        cache = get_cache()
+        cache._use_compression = True
 
     # load refl instrument if nothing specified in config
     instruments = getattr(config, 'instruments', ['refl'])
     for instrument_id in instruments:
-        getattr(dataflow.modules, instrument_id).define_instrument()
-
+        instrument_module = importlib.import_module('dataflow.modules.{instr}'.format(instr=instrument_id))
+        instrument_module.define_instrument()
 
 if __name__ == '__main__':
     create_instruments()

@@ -25,6 +25,12 @@ def _b(s):
     else:
         return s
 
+def _s(b):
+    if IS_PY3:
+        return b.decode('utf-8') if hasattr(b, 'decode') else b
+    else:
+        return b
+
 class SansData(object):
     """SansData object used for storing values from a sample file (not div/mask).
        Stores the array of data as a Uncertainty object (detailed in uncertainty.py)
@@ -36,10 +42,11 @@ class SansData(object):
                  xlabel="X", ylabel="Y",
                  theta=None, Tsam=None, Temp=None, attenuation_corrected=False):
         if isinstance(data, np.ndarray):
-            self.data = Uncertainty(data, data)
+            # Data is counts, so variance is counts.  Set variance on zero counts to 1
+            self.data = Uncertainty(data, data + (data==0))
         else:
             self.data = data
-        self.metadata = metadata
+        self.metadata = metadata if metadata is not None else {}
         # There are many places where q was not set, i think i fixed most,
         # but there might be more; be wary
         self.q = q
@@ -143,7 +150,7 @@ class SansData(object):
             'entry': self.metadata['entry'],
             'type': '2d',
             'z':  [data.flatten().tolist()],
-            'title': self.metadata['run.filename']+': ' + self.metadata['sample.labl'],
+            'title': _s(self.metadata['run.filename'])+': ' + _s(self.metadata['sample.labl']),
             #'metadata': self.metadata,
             'options': {
                 'fixedAspect': {
@@ -177,13 +184,6 @@ class SansData(object):
         metadata.update(pythonize(self.metadata))
         return metadata
 
-    def dumps(self):
-        return pickle.dumps(self)
-
-    @classmethod
-    def loads(cls, str):
-        return pickle.loads(str)
-
 def pythonize(obj):
     output = {}
     for a in obj:
@@ -203,9 +203,9 @@ def pythonize(obj):
     return output
 
 class Sans1dData(object):
-    properties = ['x', 'v', 'dx', 'dv', 'xlabel', 'vlabel', 'xunits', 'vunits', 'metadata']
+    properties = ['x', 'v', 'dx', 'dv', 'xlabel', 'vlabel', 'xunits', 'vunits', 'xscale', 'vscale', 'metadata', 'fit_function']
 
-    def __init__(self, x, v, dx=0, dv=0, xlabel="", vlabel="", xunits="", vunits="", metadata=None):
+    def __init__(self, x, v, dx=0, dv=0, xlabel="", vlabel="", xunits="", vunits="", xscale="linear", vscale="linear", metadata=None, fit_function=None):
         self.x = x
         self.v = v
         self.dx = dx
@@ -214,29 +214,33 @@ class Sans1dData(object):
         self.vlabel = vlabel
         self.xunits = xunits
         self.vunits = vunits
+        self.xscale = xscale
+        self.vscale = vscale
         self.metadata = metadata if metadata is not None else {}
+        self.fit_function = fit_function
 
     def to_dict(self):
         props = dict([(p, getattr(self, p, None)) for p in self.properties])
         return pythonize(props)
-        #props = {}
-        #properties = self.properties
-        #for a in properties:
-        #    attr = getattr(obj, a)
-        #    if isinstance(attr, np.integer):
-        #        attr = int(attr)
-        #    elif isinstance(attr, np.floating):
-        #        attr = float(attr)
-        #    elif isinstance(attr, np.ndarray):
-        #        attr = attr.tolist()
-        #    elif isinstance(attr, datetime.datetime):
-        #        attr = [attr.year, attr.month, attr.day,
-        #                attr.hour, attr.minute, attr.second]
-        #    props[a] = attr
-        #return props
 
     def get_plottable(self):
-        return self.to_dict()
+        label = "%s: %s" % (self.metadata['run.experimentScanID'], self.metadata['sample.labl'])
+        xdata = self.x.tolist()
+        ydata = self.v.tolist()
+        yerr = self.dv.tolist()
+        data = [[x, y, {"yupper": y+dy, "ylower": y-dy, "xupper": x, "xlower": x}] for x,y,dy in zip(xdata, ydata, yerr)]
+        plottable = {
+            "type": "1d",
+            "options": {
+                "axes": {
+                    "xaxis": {"label": self.xlabel},
+                    "yaxis": {"label": self.vlabel}
+                },
+                "series": [{"label": label}]
+            },
+            "data": [data]
+        }
+        return plottable
 
     def get_metadata(self):
         return self.to_dict()

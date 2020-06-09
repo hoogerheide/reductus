@@ -72,13 +72,15 @@ def nop(data):
     return data
 
 @module
-def ncnr_load(filelist=None):
+def ncnr_load(filelist=None, check_timestamps=True):
     """
     Load a list of nexus files from the NCNR data server.
 
     **Inputs**
 
     filelist (fileinfo[]): List of files to open.
+
+    check_timestamps (bool): verify that timestamps on file match request
 
     **Returns**
 
@@ -87,6 +89,7 @@ def ncnr_load(filelist=None):
     2016-06-29 Brian Maranville
     | 2017-08-21 Brian Maranville change to refldata, force cache invalidate
     | 2018-06-18 Brian Maranville change to nexusref to ignore areaDetector
+    | 2018-12-10 Brian Maranville get_plottable routines moved to python data container from js
     """
     # NB: Fileinfo is a structure with
     #     { path: "location/on/server", mtime: timestamp }
@@ -94,7 +97,7 @@ def ncnr_load(filelist=None):
     auto_divergence = True
 
     datasets = []
-    for data in url_load_list(filelist):
+    for data in url_load_list(filelist, check_timestamps=check_timestamps):
         if auto_divergence:
             data = divergence(data)
         datasets.append(data)
@@ -872,7 +875,7 @@ def subtract_background(data, backp, backm, align="none"):
     return data
 
 @module
-def fit_background_field(back, fit_scale=True, scale=1.0, epsD0=0.01, epssi=2.857e-4, LS3=380, LS4=1269, LSD=1675, HD=150, maxF=75, Qcutoff=0.05):
+def fit_background_field(back, fit_scale=True, scale=1.0, epsD0=0.01, epssi=1.109e-4, LS3=380, LS4=1269, LSD=1675, HD=150, maxF=76.2, Qcutoff=0.05):
     """
     Fit the background field from a thin liquid reservoir to background
     datasets. Background datasets:
@@ -1124,7 +1127,7 @@ def fit_footprint(data, fit_range=[None, None], origin=False):
 
     fitted_footprint (ncnr.refl.footprint.params?) : slope and intercept
 
-    2016-04-29 Paul Kienzle
+    2016-04-30 Paul Kienzle
     """
     from .footprint import fit_footprint
     if fit_range is None:
@@ -1362,6 +1365,7 @@ def super_load(filelist=None,
     | 2018-06-18 Brian Maranville change to nexusref to ignore areaDetector
     | 2018-06-20 Brian Maranville promote detector.wavelength to column (and resolution)
     | 2018-08-29 Paul Kienzle ignore sampleTilt field for NG7
+    | 2018-12-10 Brian Maranville get_plottable routines moved to python data container from js
     """
     from .load import url_load_list
     #from .intent import apply_intent

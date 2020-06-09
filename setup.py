@@ -6,10 +6,10 @@ import re
 if len(sys.argv) == 1:
     sys.argv.append('install')
 
-# Use our own nose-based test harness
 if sys.argv[1] == 'test':
     from subprocess import call
-    sys.exit(call([sys.executable, 'test.py'] + sys.argv[2:]))
+    sys.exit(call([sys.executable, '-m', 'pytest'] + sys.argv[2:]))
+#    #sys.exit(call(['test.sh'] + sys.argv[2:]))
 
 #sys.dont_write_bytecode = True
 
@@ -26,7 +26,7 @@ packages = find_packages(exclude=['reflbin'])
 #sys.dont_write_bytecode = False
 dist = setup(
     name='reductus',
-    version='0.1a4',
+    version='0.1b2',
     author='Paul Kienzle',
     author_email='paul.kienzle@nist.gov',
     url='http://github.com/reductus/reductus',
@@ -39,7 +39,10 @@ dist = setup(
         'License :: Public Domain',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Chemistry',
         'Topic :: Scientific/Engineering :: Physics',
@@ -55,6 +58,7 @@ dist = setup(
     extras_require={
         'masked_curve_fit': ['numdifftools'],
         },
+    tests_require = ['pytest'],
     )
 
 # End of file
