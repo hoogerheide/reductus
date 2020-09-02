@@ -480,8 +480,20 @@ def candor_rebin(data, qmin=None, qmax=None, qstep=0.003, qstep_max=None, averag
         if qstep_max is None:
             q = np.arange(qmin, qmax, qstep)
         else:
-            dq = np.linspace(qstep,qstep_max, int(np.ceil(2*(qmax-qmin)/(qstep_max+qstep))))
-            q = (qmin-qstep) + np.cumsum(dq)
+            # change here: qstep_max will temporarily be an exponent
+            qexp = qstep_max
+            N = int(np.ceil((qstep/(qmax-qmin))**(-1./qexp)))
+            print('Number of steps: %i' % N)
+            print('Min step size: %f' % ((qmax-qmin)*float(N)**(-qexp)))
+            print('Max step size: %f' % ((qmax-qmin)*(1-(1-1./float(N))**qexp)))
+            normq = np.linspace(0, 1, N)**qexp
+            q = qmin + normq*(qmax-qmin)
+            print(normq, q)
+
+        if qstep > 1:
+            N = int(np.floor(qstep))
+            qsort = np.sort(data.Qz[(data.Qz > qmin) & (data.Qz < qmax)])
+            q = qsort[range(N//2, len(qsort), N)]
         data = rebin(data, q, average)
 
     return data
