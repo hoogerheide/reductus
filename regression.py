@@ -25,6 +25,8 @@ import json
 import re
 import difflib
 import warnings
+import numpy as np
+import matplotlib.pyplot as plt
 
 from dataflow.core import Template, lookup_module
 from dataflow.calc import process_template
@@ -234,20 +236,54 @@ def play_file(filename):
             'export_type': export_type,
         }
 
+    outputs = list()
     output, export = run_template(template_data, concatenate=concatenate)
+    outputs.append(output)
+    nboot = 200
+    for i, m in enumerate(template_data['template']['modules']):
+        if m['module'] == 'ncnr.refl.candor':
+            template_data['template']['modules'][i]['module'] = 'ncnr.refl.candor_mc'
 
-    if export:
-        save_content(export['values'])
-    plot_content(output)
+    for i in range(nboot):
+        print('Bootstrap iteration %i of %i' % (i+1, nboot))
+        output, export = run_template(template_data, concatenate=concatenate)    
+        outputs.append(output)
+    #if export:
+    #    save_content(export['values'])
+#    plot_content(outputs)
+    x, v0, dv0 = compile_content([outputs[0]], bootstrap=False)
+    x, v, dv = compile_content(outputs[1:], bootstrap=True)
+    np.savetxt(filename.split('.json')[0] + '_bootstrap%i.txt' % nboot, np.vstack((x, v0, dv0, v, dv)).T, delimiter=',', header='Q,Rorg, dRorg, Rboot,dRboot')
+    plt.figure(figsize=(10,8))
+    plt.errorbar(x, v0, dv0, color='black')
+    plt.errorbar(x*1.001, v, dv, fmt='.')
+    plt.yscale('linear')
+    plt.show()
 
-def plot_content(output):
+def compile_content(outputs, bootstrap=False):
+    allv = []
+    for output in outputs:
+        for data in output.values:
+            if hasattr(data, 'plot'):
+                v = data.v
+                dv = data.dv
+                x = data.x
+                allv.append(v)
+    if bootstrap:
+        allv = np.array(allv)
+        v = np.mean(allv, axis=0)
+        dv = np.std(allv, axis=0)
+    return x, v, dv
+
+def plot_content(outputs):
     plotted = False
     import matplotlib.pyplot as plt
-    for data in output.values:
-        if hasattr(data, 'plot'):
-            plt.figure()
-            data.plot()
-            plotted = True
+    plt.figure()    
+    for output in outputs:
+        for data in output.values:
+            if hasattr(data, 'plot'):
+                data.plot()
+                plotted = True
     if plotted:
         plt.show()
 
