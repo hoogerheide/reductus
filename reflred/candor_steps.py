@@ -189,8 +189,119 @@ def candor_mc(
     for data in url_load_list(filelist, loader=load_entries):
         #newcts = resample_poisson(data.detector.counts)
         #print(np.vstack((data.detector.counts, newcts)).T)
-        data.detector.counts = resample_poisson(data.detector.counts)
+        data.detector.counts = resample_poisson(data.detector.counts, usecdf=True)
         #data.monitor.counts = resample_poisson(data.monitor.counts)
+        # TODO: drop data rows where fastShutter.openState is 0
+        data.Qz_basis = Qz_basis
+        if intent not in (None, 'none', 'auto'):
+            data.intent = intent
+        if bank_select is not None:
+            data = select_bank(data, bank_select)
+        if channel_select is not None:
+            data = select_channel(data, channel_select)
+        if auto_divergence:
+            data = steps.divergence_fb(data, sample_width)
+        if dc_rate != 0. or dc_slope != 0.:
+            data = dark_current(data, dc_rate, dc_slope)
+        if detector_correction:
+            data = steps.detector_dead_time(data, None)
+        if monitor_correction:
+            data = steps.monitor_dead_time(data, None)
+        if spectral_correction:
+            data = spectral_efficiency(data)
+        data = steps.normalize(data, base=base)
+        datasets.append(data)
+
+    return datasets
+
+@nocache
+@module("candor")
+def candor_zero(
+        filelist=None,
+        bank_select=None,
+        channel_select=None,
+        dc_rate=0.,
+        dc_slope=0.,
+        detector_correction=False,
+        monitor_correction=False,
+        spectral_correction=False,
+        Qz_basis='target',
+        intent='auto',
+        sample_width=None,
+        base='auto'):
+    r"""
+    Load a list of Candor files from the NCNR data server and apply a Monte Carlo resampling.
+
+    **Inputs**
+
+    filelist (fileinfo[]): List of files to open.
+
+    bank_select {Select bank} (int) : Choose bank to output (default is all)
+
+    channel_select {Select channel(s)} (int[]*) : Choose channels to output from bank (default is all)
+
+    dc_rate {Dark counts per minute} (float)
+    : Number of dark counts to subtract from each detector channel per
+    minute of counting time (see Dark Current).
+
+    dc_slope {DC vs. slit 1} (float)
+    : Dark counts per mm of slit 1 opening per minute.
+
+    detector_correction {Apply detector deadtime correction} (bool)
+    : If True, use deadtime constants in file to correct detector counts
+    (see Detector Dead Time).
+
+    monitor_correction {Apply monitor deadtime correction} (bool)
+    : If True, use deadtime constants in file to correct monitor counts
+    (see Monitor Dead Time).
+
+    spectral_correction {Apply detector efficiency correction} (bool)
+    : If True, scale counts by the detector efficiency calibration given
+    in the file (see Spectral Efficiency).
+
+    Qz_basis (opt:target|sample|detector|actual)
+    : How to calculate Qz from instrument angles.
+
+    intent (opt:auto|specular|background+\|background-\|intensity|rock sample|rock detector|rock qx|scan)
+    : Measurement intent (specular, background+, background-, slit, rock),
+    auto or infer.  If intent is 'scan', then use the first scanned variable.
+
+    sample_width {Sample width (mm)} (float?)
+    : Width of the sample along the beam direction in mm, used for
+    calculating the effective resolution when the sample is smaller
+    than the beam.  Leave blank to use value from data file.
+
+    base {Normalize by} (opt:auto|monitor|time|roi|power|none)
+    : How to convert from counts to count rates. Leave this as none if your
+    template does normalization after integration (see Normalize).
+
+    **Returns**
+
+    output (candordata[]): All entries of all files in the list.
+
+    | 2020-02-05 Paul Kienzle
+    | 2020-03-12 Paul Kienzle Add slit 1 dependence for DC rate
+    | 2020-08-27 Brian Maranville loader gets attenuator information
+    | 2020-09-11 Brian Maranville loader updated with new motor names
+    | 2020-10-19 David Hoogerheide added resampling procedure
+    """
+    from .load import url_load_list
+    from .candor import load_entries
+    from scipy.stats import poisson
+    auto_divergence = True
+
+    #use dc_rate to get average value for subtraction
+    truerate = dc_rate
+    dc_rate = 0.
+
+    # Note: candor automatically computes divergence.
+    datasets = []
+    for data in url_load_list(filelist, loader=load_entries):
+        #newcts = resample_poisson(data.detector.counts)
+        #print(np.vstack((data.detector.counts, newcts)).T)
+        #print(np.expand_dims(np.expand_dims(data.monitor.count_time, 1), 1).shape)
+        data.detector.counts = poisson.rvs(truerate*np.expand_dims(np.expand_dims(data.monitor.count_time, 1), 1), size=data.detector.counts.shape)
+        data.monitor.counts = np.array(data.monitor.count_time*1000, dtype=int)
         # TODO: drop data rows where fastShutter.openState is 0
         data.Qz_basis = Qz_basis
         if intent not in (None, 'none', 'auto'):

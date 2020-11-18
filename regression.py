@@ -239,7 +239,7 @@ def play_file(filename):
     outputs = list()
     output, export = run_template(template_data, concatenate=concatenate)
     outputs.append(output)
-    nboot = 200
+    nboot = 1000
     for i, m in enumerate(template_data['template']['modules']):
         if m['module'] == 'ncnr.refl.candor':
             template_data['template']['modules'][i]['module'] = 'ncnr.refl.candor_mc'
@@ -252,15 +252,15 @@ def play_file(filename):
     #    save_content(export['values'])
 #    plot_content(outputs)
     x, v0, dv0 = compile_content([outputs[0]], bootstrap=False)
-    x, v, dv = compile_content(outputs[1:], bootstrap=True)
-    np.savetxt(filename.split('.json')[0] + '_bootstrap%i.txt' % nboot, np.vstack((x, v0, dv0, v, dv)).T, delimiter=',', header='Q,Rorg, dRorg, Rboot,dRboot')
+    x, v, dv = compile_content(outputs[1:], bootstrap=True, ci=0.68)
+    np.savetxt(filename.split('.json')[0] + '_bootstrap%i_negbinom_dist.txt' % nboot, np.vstack((x, v0, dv0, v, dv)).T, delimiter=',', header='Q,Rorg, dRorg, Rboot,dRboot')
     plt.figure(figsize=(10,8))
     plt.errorbar(x, v0, dv0, color='black')
     plt.errorbar(x*1.001, v, dv, fmt='.')
     plt.yscale('linear')
     plt.show()
 
-def compile_content(outputs, bootstrap=False):
+def compile_content(outputs, bootstrap=False, ci=0.0):
     allv = []
     for output in outputs:
         for data in output.values:
@@ -272,7 +272,14 @@ def compile_content(outputs, bootstrap=False):
     if bootstrap:
         allv = np.array(allv)
         v = np.mean(allv, axis=0)
-        dv = np.std(allv, axis=0)
+        if ci == 0.0:
+            dv = np.std(allv, axis=0)
+        else:
+            low_ci = np.percentile(allv, 100*(0.5-ci/2), axis=0)
+            hi_ci = np.percentile(allv, 100*(0.5+ci/2), axis=0)
+            med = np.median(allv, axis=0)
+            dv = np.vstack((med - low_ci, hi_ci - med))
+
     return x, v, dv
 
 def plot_content(outputs):
